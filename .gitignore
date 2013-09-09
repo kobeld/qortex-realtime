@@ -1,0 +1,12 @@
+.DS_Store
+.sass-cache/
+/docs/
+workspace.vim
+tags
+main
+a.out
+*.swp
+*.sublime-project
+*.sublime-workspace
+*cscope*
+/aaron

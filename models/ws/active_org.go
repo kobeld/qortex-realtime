@@ -1,4 +1,4 @@
-package models
+package ws
 
 import (
 	"code.google.com/p/go.net/websocket"

@@ -1,5 +1,5 @@
 package configs
 
 var (
-	WSPort = ":5550"
+	WSPort = ":5055"
 )

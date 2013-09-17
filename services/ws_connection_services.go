@@ -23,13 +23,23 @@ func BuildConnection(conn *websocket.Conn) {
 		}
 	}()
 
-	cookie := conn.Request().URL.Query().Get("u")
 	orgIdHex := conn.Request().URL.Query().Get("o")
-	if cookie == "" || orgIdHex == "" {
+	if orgIdHex == "" {
 		return
 	}
 
-	member, _ := getSessionMember(cookie)
+	wsCookie := ""
+	for _, cc := range conn.Request().Cookies() {
+		if cc.Name == "qortex" {
+			wsCookie = cc.Value
+			break
+		}
+	}
+	if wsCookie == "" {
+		return
+	}
+
+	member, _ := getSessionMember(wsCookie)
 	if member == nil {
 		return
 	}

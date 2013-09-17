@@ -1,7 +1,7 @@
 package services
 
 import (
-	"github.com/kobeld/qortex-realtime/models"
+	"github.com/kobeld/qortex-realtime/models/ws"
 	"github.com/sunfmin/mgodb"
 	"github.com/theplant/qortex/organizations"
 	"github.com/theplant/qortex/utils"
@@ -12,9 +12,9 @@ import (
 var mu sync.Mutex
 
 // The map key is OrganizationId
-var activeOrgMap = make(map[string]*models.ActiveOrg)
+var activeOrgMap = make(map[string]*ws.ActiveOrg)
 
-func MyActiveOrg(orgIdHex string) (activeOrg *models.ActiveOrg, err error) {
+func MyActiveOrg(orgIdHex string) (activeOrg *ws.ActiveOrg, err error) {
 	mu.Lock()
 	defer mu.Unlock()
 
@@ -51,11 +51,11 @@ func MyActiveOrg(orgIdHex string) (activeOrg *models.ActiveOrg, err error) {
 	}
 
 	// Init the activeOrg and put it into the map
-	activeOrg = &models.ActiveOrg{
+	activeOrg = &ws.ActiveOrg{
 		OrgId:        orgIdHex,
 		Organization: org,
-		OnlineUsers:  make(map[bson.ObjectId]*models.OnlineUser),
-		Broadcast:    make(chan models.GenericPushingMessage),
+		OnlineUsers:  make(map[bson.ObjectId]*ws.OnlineUser),
+		Broadcast:    make(chan ws.GenericPushingMessage),
 		CloseSign:    make(chan bool),
 		AllDBs:       allDBs,
 	}
@@ -67,7 +67,7 @@ func MyActiveOrg(orgIdHex string) (activeOrg *models.ActiveOrg, err error) {
 }
 
 // The heart of ActiveOrg
-func runActiveOrg(activeOrg *models.ActiveOrg) {
+func runActiveOrg(activeOrg *ws.ActiveOrg) {
 	for {
 		select {
 		case b := <-activeOrg.Broadcast:

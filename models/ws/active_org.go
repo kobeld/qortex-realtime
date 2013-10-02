@@ -2,6 +2,7 @@ package ws
 
 import (
 	"code.google.com/p/go.net/websocket"
+	"errors"
 	"github.com/sunfmin/mgodb"
 	"github.com/theplant/qortex/organizations"
 	"github.com/theplant/qortex/users"
@@ -45,6 +46,17 @@ func (this *ActiveOrg) GetOrInitOnlineUser(user *users.User, conn *websocket.Con
 		onlineUser.CloseTimer.Stop()
 	}
 	onlineUser.WsConns = append(onlineUser.WsConns, conn)
+
+	return
+}
+
+func (this *ActiveOrg) GetOnlineUserById(userId bson.ObjectId) (onlineUser *OnlineUser, err error) {
+	ok := false
+	onlineUser, ok = this.OnlineUsers[userId]
+	if !ok {
+		err = errors.New("No such user in running Org")
+		return
+	}
 
 	return
 }

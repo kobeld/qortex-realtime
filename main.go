@@ -9,6 +9,8 @@ import (
 )
 
 func main() {
+	// Register rpc methods
+	services.RegisterRpcs()
 
 	http.Handle("/conn", websocket.Handler(services.BuildConnection))
 

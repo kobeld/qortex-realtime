@@ -4,6 +4,7 @@ import (
 	"github.com/kobeld/qortex-realtime/models/ws"
 	"github.com/sunfmin/mgodb"
 	"github.com/theplant/qortex/organizations"
+	"github.com/theplant/qortex/services"
 	"github.com/theplant/qortex/utils"
 	"labix.org/v2/mgo/bson"
 	"sync"
@@ -83,4 +84,40 @@ func runActiveOrg(activeOrg *ws.ActiveOrg) {
 			}
 		}
 	}
+}
+
+// The websocket service that wrapping the qortex Service, which can invoke the api methods
+type WsService struct {
+	services.Service
+	OnlineUser *ws.OnlineUser
+}
+
+// Make the service object in web socket connection
+func MakeWsService(orgIdHex, userIdHex string) (wsService *WsService, err error) {
+
+	userId, err := utils.ToObjectId(userIdHex)
+	if err != nil {
+		utils.PrintStackAndError(err)
+		return
+	}
+
+	activeOrg, err := MyActiveOrg(orgIdHex)
+	if err != nil {
+		utils.PrintStackAndError(err)
+		return
+	}
+
+	wsService = new(WsService)
+	onlineUser, err := activeOrg.GetOnlineUserById(userId)
+	if err != nil {
+		utils.PrintStackAndError(err)
+		return
+	}
+
+	wsService.OnlineUser = onlineUser
+	wsService.LoggedInUser = onlineUser.User
+	wsService.CurrentOrg = activeOrg.Organization
+	wsService.AllDBs = activeOrg.AllDBs
+
+	return
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/bitly/go-nsq"
+	"github.com/kobeld/qortex-realtime/services"
 	"github.com/theplant/qortex/nsqproducers"
 	"github.com/theplant/qortex/utils"
 )
@@ -26,6 +27,8 @@ func (this *EntryNtfsConsumer) HandleMessage(msg *nsq.Message) (err error) {
 		utils.PrintStackAndError(err)
 		return
 	}
+
+	services.SendEntryNotification(entryTopicData.OrgId, entryTopicData.UserId, entryTopicData.ApiEntry)
 
 	fmt.Printf("%+v \n", entryTopicData.ApiEntry)
 

@@ -121,3 +121,18 @@ func MakeWsService(orgIdHex, userIdHex string) (wsService *WsService, err error)
 
 	return
 }
+
+func GetOnlineUsersByOrgIds(orgIds []string) map[bson.ObjectId]*ws.OnlineUser {
+	onlineUsers := make(map[bson.ObjectId]*ws.OnlineUser)
+	for _, orgId := range orgIds {
+		org, _ := MyActiveOrg(orgId)
+		if org == nil {
+			continue
+		}
+
+		for key, onlineUser := range org.OnlineUsers {
+			onlineUsers[key] = onlineUser
+		}
+	}
+	return onlineUsers
+}

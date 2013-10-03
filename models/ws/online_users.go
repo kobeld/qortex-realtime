@@ -3,6 +3,7 @@ package ws
 import (
 	"code.google.com/p/go.net/websocket"
 	"github.com/kobeld/qortex-realtime/configs"
+	"github.com/sunfmin/mgodb"
 	"github.com/theplant/qortex/users"
 	"github.com/theplant/qortex/utils"
 	"log"
@@ -18,6 +19,10 @@ type OnlineUser struct {
 	Send          chan GenericPushingMessage
 	Lock          sync.Mutex
 	CloseTimer    *time.Timer
+}
+
+func (this *OnlineUser) AllDBs() []*mgodb.Database {
+	return this.InActivedOrg.AllDBs
 }
 
 // Push realtime message from server to client
@@ -39,6 +44,41 @@ func (this *OnlineUser) SendReply(reply GenericPushingMessage) {
 		}
 	}()
 	this.Send <- reply
+}
+
+func (this *OnlineUser) ClearNewMessageId() int {
+	this.Lock.Lock()
+	defer this.Lock.Unlock()
+	this.NewMessageIds = []string{}
+
+	return 0
+}
+
+func (this *OnlineUser) DeleteNewMessageId(entryId string) int {
+	this.Lock.Lock()
+	defer this.Lock.Unlock()
+
+	for i, id := range this.NewMessageIds {
+		if id == entryId {
+			this.NewMessageIds = append(this.NewMessageIds[:i], this.NewMessageIds[i+1:]...)
+		}
+	}
+	return len(this.NewMessageIds)
+}
+
+func (this *OnlineUser) AddNewMessageId(entryId string) int {
+	this.Lock.Lock()
+	defer this.Lock.Unlock()
+
+	// No duplicated id
+	for _, id := range this.NewMessageIds {
+		if id == entryId {
+			return len(this.NewMessageIds)
+		}
+	}
+
+	this.NewMessageIds = append(this.NewMessageIds, entryId)
+	return len(this.NewMessageIds)
 }
 
 func (this *OnlineUser) KillWebsocket(conn *websocket.Conn) {

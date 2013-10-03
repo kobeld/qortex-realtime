@@ -60,3 +60,11 @@ func (this *ActiveOrg) GetOnlineUserById(userId bson.ObjectId) (onlineUser *Onli
 
 	return
 }
+
+func (this *ActiveOrg) KillUser(userId bson.ObjectId) {
+	delete(this.OnlineUsers, userId)
+	// If no one in group, close and clean the resouce.
+	if len(this.OnlineUsers) == 0 {
+		this.CloseSign <- true
+	}
+}

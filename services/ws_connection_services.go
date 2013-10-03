@@ -62,6 +62,9 @@ func BuildConnection(conn *websocket.Conn) {
 
 	// Holding the connection
 	jsonrpc.ServeConn(conn)
+
+	// Cut current connection and clean up related resources
+	onlineUser.KillWebsocket(conn)
 }
 
 func getSessionMember(session string) (member *members.Member, err error) {

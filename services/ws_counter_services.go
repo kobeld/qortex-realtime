@@ -51,3 +51,78 @@ func (c *Counter) Refresh(input *RefreshInput, reply *CountNotification) (err er
 	}
 	return
 }
+
+// Read Entry struct and methods
+type ReadEntryInput struct {
+	EntryId        string
+	ReaderId       string
+	GroupId        string
+	OrganizationId string
+	ConversationId string
+}
+
+func (this *ReadEntryInput) isValid() bool {
+	if this.EntryId == "" || this.ReaderId == "" || this.OrganizationId == "" {
+		return false
+	}
+	return true
+}
+
+func (this *ReadEntryInput) isReadEntry() bool {
+	return this.GroupId != "" && this.ConversationId == ""
+}
+
+func (this *ReadEntryInput) isReadMyMessage() bool {
+	return this.GroupId == "" && this.ConversationId != ""
+}
+
+func (c *Counter) ReadEntry(input *ReadEntryInput, reply *CountNotification) (err error) {
+
+	defer func() {
+		if x := recover(); x != nil {
+			utils.PrintfStackAndError("Error: %+v \n For:", x.(error), input)
+		}
+	}()
+
+	if !input.isValid() {
+		return
+	}
+
+	var myCount *qortexapi.MyCount
+	serv, err := MakeWsService(input.OrganizationId, input.ReaderId)
+	if err != nil {
+		utils.PrintStackAndError(err)
+		return
+	}
+
+	var method string
+	switch {
+	case input.isReadEntry():
+		method = COUNTER_READ_ENTRY
+		myCount, err = serv.ReadEntry(input.EntryId, input.GroupId)
+	case input.isReadMyMessage():
+		method = COUNTER_READ_MESSAGE
+		myCount, err = serv.ReadMyMessage(input.ConversationId)
+	default:
+		return
+	}
+	if err != nil {
+		utils.PrintStackAndError(err)
+		return
+	}
+
+	if serv.OnlineUser == nil {
+		return
+	}
+
+	newReply := CountNotification{
+		Method:           method,
+		EntryId:          input.EntryId,
+		GroupId:          input.GroupId,
+		MyCount:          myCount,
+		NewMessageNumber: serv.OnlineUser.ClearNewMessageId(),
+	}
+	serv.OnlineUser.SendReply(newReply)
+
+	return
+}

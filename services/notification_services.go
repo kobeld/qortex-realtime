@@ -4,23 +4,24 @@ import (
 	"github.com/kobeld/qortex-realtime/models/ws"
 	"github.com/theplant/qortex/entries"
 	"github.com/theplant/qortex/notifications"
+	"github.com/theplant/qortex/nsqproducers"
 	"github.com/theplant/qortex/organizations"
 	"github.com/theplant/qortex/services"
 	"github.com/theplant/qortex/users"
 	"github.com/theplant/qortex/utils"
-	"github.com/theplant/qortexapi"
 	"labix.org/v2/mgo/bson"
 	"strings"
 )
 
-func SendEntryNotification(orgIdHex, userIdHex string, apiEntry *qortexapi.Entry) (err error) {
+func SendEntryNotification(entryTopicData *nsqproducers.EntryTopicData) (err error) {
 
-	serv, err := MakeWsService(orgIdHex, userIdHex)
+	serv, err := MakeWsService(entryTopicData.OrgId, entryTopicData.UserId)
 	if err != nil {
 		utils.PrintStackAndError(err)
 		return
 	}
 
+	apiEntry := entryTopicData.ApiEntry
 	currentOrg := serv.CurrentOrg
 	currentUser := serv.LoggedInUser
 
@@ -33,7 +34,16 @@ func SendEntryNotification(orgIdHex, userIdHex string, apiEntry *qortexapi.Entry
 		return
 	}
 
-	entity := notifications.MakeEntryEntity(db, currentOrg, currentUser, entry)
+	var entity notifications.Entity
+
+	switch entryTopicData.Status {
+	case nsqproducers.TOPIC_STATUS_CREATE, nsqproducers.TOPIC_STATUS_DELETE, nsqproducers.TOPIC_STATUS_UPDATE:
+		entity = notifications.MakeEntryEntity(db, currentOrg, currentUser, entry)
+
+	case nsqproducers.TOPIC_STATUS_LIKE, nsqproducers.TOPIC_STATUS_REMOVE_LIKE:
+		hasLiked := (entryTopicData.Status == nsqproducers.TOPIC_STATUS_LIKE)
+		entity = notifications.NewLikeEntity(currentOrg, currentUser, entry, hasLiked)
+	}
 
 	// currentTime := time.Now()
 	causedEntry := entity.CausedEntry()
@@ -129,6 +139,15 @@ func makeAndPushEventReply(currentUser *users.User, event *notifications.Event,
 			reply.NewEntry = true
 			reply.EntryId = entity.NewEntryId().Hex()
 			reply.NewMessageNumber = onlineUser.AddNewMessageId(reply.EntryId)
+		}
+		onlineUser.SendReply(reply)
+
+	case notifications.VT_LIKE, notifications.VT_REMOVE_LIKE:
+
+		reply := CountNotification{
+			Method:  "Counter.Refresh",
+			GroupId: entity.CausedEntry().GroupId.Hex(),
+			MyCount: services.UserCountData(onlineUser.AllDBs(), onlineUser.User),
 		}
 		onlineUser.SendReply(reply)
 	}

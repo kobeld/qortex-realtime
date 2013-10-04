@@ -27,6 +27,6 @@ func (this *EntryNtfsConsumer) HandleMessage(msg *nsq.Message) (err error) {
 		return
 	}
 
-	services.SendEntryNotification(entryTopicData.OrgId, entryTopicData.UserId, entryTopicData.ApiEntry)
+	services.SendEntryNotification(entryTopicData)
 	return
 }

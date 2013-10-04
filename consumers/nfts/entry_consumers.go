@@ -2,7 +2,6 @@ package nfts
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/bitly/go-nsq"
 	"github.com/kobeld/qortex-realtime/services"
 	"github.com/theplant/qortex/nsqproducers"
@@ -29,8 +28,5 @@ func (this *EntryNtfsConsumer) HandleMessage(msg *nsq.Message) (err error) {
 	}
 
 	services.SendEntryNotification(entryTopicData.OrgId, entryTopicData.UserId, entryTopicData.ApiEntry)
-
-	fmt.Printf("%+v \n", entryTopicData.ApiEntry)
-
 	return
 }

@@ -12,13 +12,8 @@ const (
 	COUNTER_REFRESH           = "Counter.Refresh"
 )
 
-type Counter int
-
-type RefreshInput struct {
-	LoggedInUserId string
-	OrganizationId string
-}
-
+// Counter related reply data that
+// Refresh, ReadEntry and ReadNotificaiton all using
 type CountNotification struct {
 	Method           string
 	GroupId          string
@@ -29,7 +24,14 @@ type CountNotification struct {
 	NewMessageNumber int
 }
 
-func (c *Counter) Refresh(input *RefreshInput, reply *CountNotification) (err error) {
+type Counter int
+
+type RefreshInput struct {
+	LoggedInUserId string
+	OrganizationId string
+}
+
+func (this *Counter) Refresh(input *RefreshInput, reply *CountNotification) (err error) {
 
 	defer func() {
 		if x := recover(); x != nil {
@@ -76,7 +78,7 @@ func (this *ReadEntryInput) isReadMyMessage() bool {
 	return this.GroupId == "" && this.ConversationId != ""
 }
 
-func (c *Counter) ReadEntry(input *ReadEntryInput, reply *CountNotification) (err error) {
+func (this *Counter) ReadEntry(input *ReadEntryInput, reply *CountNotification) (err error) {
 
 	defer func() {
 		if x := recover(); x != nil {
@@ -121,6 +123,47 @@ func (c *Counter) ReadEntry(input *ReadEntryInput, reply *CountNotification) (er
 		GroupId:          input.GroupId,
 		MyCount:          myCount,
 		NewMessageNumber: serv.OnlineUser.ClearNewMessageId(),
+	}
+	serv.OnlineUser.SendReply(newReply)
+
+	return
+}
+
+// Read the red notificaiton and realtime push the result to client
+type ReadNotificationInput struct {
+	NotificationItemId string
+	ReaderId           string
+	GroupId            string
+	OrganizationId     string
+}
+
+func (this *Counter) ReadNotificationItem(input *ReadNotificationInput, reply *CountNotification) (err error) {
+
+	defer func() {
+		if x := recover(); x != nil {
+			utils.PrintfStackAndError("Error: %+v \n For:", x.(error), input)
+		}
+	}()
+
+	var myCount *qortexapi.MyCount
+	serv, err := MakeWsService(input.OrganizationId, input.ReaderId)
+	if err != nil {
+		utils.PrintStackAndError(err)
+		return
+	}
+	if myCount, err = serv.ReadNotificationItem(input.NotificationItemId, input.GroupId); err != nil {
+		utils.PrintStackAndError(err)
+		return
+	}
+
+	if serv.OnlineUser == nil {
+		return
+	}
+
+	newReply := CountNotification{
+		Method:           COUNTER_READ_NOTIFICATION,
+		MyCount:          myCount,
+		NewMessageNumber: len(serv.OnlineUser.NewMessageIds),
 	}
 	serv.OnlineUser.SendReply(newReply)
 

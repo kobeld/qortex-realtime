@@ -3,6 +3,8 @@ package services
 import (
 	"github.com/kobeld/qortex-realtime/models/ws"
 	"github.com/sunfmin/mgodb"
+	"github.com/theplant/qortex/i18n"
+	"github.com/theplant/qortex/members"
 	"github.com/theplant/qortex/organizations"
 	"github.com/theplant/qortex/services"
 	"github.com/theplant/qortex/utils"
@@ -114,10 +116,19 @@ func MakeWsService(orgIdHex, userIdHex string) (wsService *WsService, err error)
 		return
 	}
 
+	currentMember, err := members.FindById(userId)
+	if err != nil {
+		utils.PrintStackAndError(err)
+		return
+	}
+
+	wsService.LoggedInMember = currentMember
 	wsService.OnlineUser = onlineUser
 	wsService.LoggedInUser = onlineUser.User
 	wsService.CurrentOrg = activeOrg.Organization
 	wsService.AllDBs = activeOrg.AllDBs
+	// TODO: should use the user locale
+	wsService.Locale = i18n.EN
 
 	return
 }

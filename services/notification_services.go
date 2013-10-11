@@ -15,6 +15,62 @@ import (
 
 func SendEntryNotification(entryTopicData *nsqproducers.EntryTopicData) (err error) {
 
+	// Make the Websocket Service which overriding the qortexapi Service methods
+	serv, err := MakeWsService(entryTopicData.OrgId, entryTopicData.UserId)
+	if err != nil {
+		utils.PrintStackAndError(err)
+		return
+	}
+
+	apiEntry := entryTopicData.ApiEntry
+	gdb, err := serv.GetGroupOrgDB(apiEntry.GroupId)
+	if err != nil {
+		utils.PrintStackAndError(err)
+		return
+	}
+
+	currentOrg := serv.CurrentOrg
+	currentUser := serv.LoggedInUser
+
+	entity := NewEntryEntity(gdb, currentOrg, currentUser, apiEntry)
+	onlineUsers := GetOnlineUsersByOrgIds(entity.GetToNotifyOrgIds())
+
+	events, err := entity.MakeEventsAndSaveNotifications()
+	if err != nil {
+		utils.PrintStackAndError(err)
+		return
+	}
+
+	for _, event := range events {
+
+		onlineUser := pickOnlineUser(event.ToUser.Id, onlineUsers)
+
+		if onlineUser == nil {
+			continue
+		}
+
+		reply := CountNotification{
+			Method:  "Counter.Refresh",
+			GroupId: apiEntry.GroupId,
+			MyCount: services.UserCountData(onlineUser.AllDBs(), onlineUser.User),
+		}
+
+		if event.ShowNewBar {
+			reply.Method = "Counter.NewArrived"
+			reply.NewEntry = true
+			reply.EntryId = apiEntry.Id
+			reply.NewMessageNumber = onlineUser.AddNewMessageId(apiEntry.Id)
+		}
+
+		onlineUser.SendReply(reply)
+	}
+
+	return
+}
+
+// ----- old entry
+func SendEntryNotification_old(entryTopicData *nsqproducers.EntryTopicData) (err error) {
+
 	serv, err := MakeWsService(entryTopicData.OrgId, entryTopicData.UserId)
 	if err != nil {
 		utils.PrintStackAndError(err)

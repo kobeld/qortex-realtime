@@ -99,7 +99,7 @@ func (this *OnlineUser) KillWebsocket(conn *websocket.Conn) {
 		}
 		this.CloseTimer = time.AfterFunc(configs.ONLINE_USER_CLOSE_DURATION, func() {
 			log.Printf("Websocket: No other living BrowserSockets. Cleaning ( %+v ) resources. \n", this.User.Email)
-			this.InActivedOrg.KillUser(this.User.Id)
+			this.InActivedOrg.KillUser(this.User.Id.Hex())
 
 			// Update user offline time and put user into the offline queue for getting offline digest mail
 			this.User.UpdateOfflineTime(this.InActivedOrg.Organization.Database)

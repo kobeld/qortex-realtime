@@ -2,11 +2,9 @@ package ws
 
 import (
 	"code.google.com/p/go.net/websocket"
-	"errors"
 	"github.com/sunfmin/mgodb"
 	"github.com/theplant/qortex/organizations"
 	"github.com/theplant/qortex/users"
-	"labix.org/v2/mgo/bson"
 	"log"
 	"sync"
 )
@@ -17,7 +15,7 @@ type GenericPushingMessage interface{}
 type ActiveOrg struct {
 	OrgId        string
 	Organization *organizations.Organization
-	OnlineUsers  map[bson.ObjectId]*OnlineUser
+	OnlineUsers  map[string]*OnlineUser
 	Broadcast    chan GenericPushingMessage
 	CloseSign    chan bool
 	AllDBs       []*mgodb.Database
@@ -29,7 +27,7 @@ func (this *ActiveOrg) GetOrInitOnlineUser(user *users.User, conn *websocket.Con
 	this.Lock.Lock()
 	defer this.Lock.Unlock()
 
-	onlineUser = this.OnlineUsers[user.Id]
+	onlineUser = this.OnlineUsers[user.Id.Hex()]
 	if onlineUser == nil {
 		log.Printf("----> New online user %s", user.Email)
 		onlineUser = &OnlineUser{
@@ -38,7 +36,7 @@ func (this *ActiveOrg) GetOrInitOnlineUser(user *users.User, conn *websocket.Con
 			User:         user,
 			Send:         make(chan GenericPushingMessage, 32),
 		}
-		this.OnlineUsers[user.Id] = onlineUser
+		this.OnlineUsers[user.Id.Hex()] = onlineUser
 		go onlineUser.PushToClient()
 	}
 
@@ -50,19 +48,13 @@ func (this *ActiveOrg) GetOrInitOnlineUser(user *users.User, conn *websocket.Con
 	return
 }
 
-func (this *ActiveOrg) GetOnlineUserById(userId bson.ObjectId) (onlineUser *OnlineUser, err error) {
-	ok := false
-	onlineUser, ok = this.OnlineUsers[userId]
-	if !ok {
-		err = errors.New("No such user in running Org")
-		return
-	}
-
+func (this *ActiveOrg) GetOnlineUserById(userIdHex string) (onlineUser *OnlineUser) {
+	onlineUser, _ = this.OnlineUsers[userIdHex]
 	return
 }
 
-func (this *ActiveOrg) KillUser(userId bson.ObjectId) {
-	delete(this.OnlineUsers, userId)
+func (this *ActiveOrg) KillUser(userIdHex string) {
+	delete(this.OnlineUsers, userIdHex)
 	// If no one in group, close and clean the resouce.
 	if len(this.OnlineUsers) == 0 {
 		this.CloseSign <- true

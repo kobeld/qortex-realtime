@@ -25,7 +25,8 @@ func SendEntryNotification(entryTopicData *nsqproducers.EntryTopicData) (err err
 	}
 
 	apiEntry := entryTopicData.ApiEntry
-	gdb, err := serv.GetGroupOrgDB(apiEntry.GroupId)
+
+	gdb, err := GetGroupOrgDB(entryTopicData.OrgId, apiEntry.GroupId)
 	if err != nil {
 		utils.PrintStackAndError(err)
 		return

@@ -42,26 +42,13 @@ func (this *Counter) Refresh(input *RefreshInput, reply *CountNotification) (err
 
 	reply.Method = COUNTER_REFRESH
 
-	userId, err := utils.ToObjectId(input.LoggedInUserId)
+	activeOrg, onlineUser, err := getActiveOrgAndOnlineUser(input.OrganizationId, input.LoggedInUserId)
 	if err != nil {
 		utils.PrintStackAndError(err)
 		return
 	}
 
-	activeOrg, err := MyActiveOrg(input.OrganizationId)
-	if err != nil {
-		utils.PrintStackAndError(err)
-		return
-	}
-
-	onlineUser, err := activeOrg.GetOnlineUserById(userId)
-	if err != nil {
-		utils.PrintStackAndError(err)
-		return
-	}
-
-	totolCount := counts.SumAndGetAllDbCount(onlineUser.AllDBs(), activeOrg.Organization.Id, userId)
-
+	totolCount := counts.SumAndGetAllDbCount(onlineUser.AllDBs(), activeOrg.Organization.Id, onlineUser.User.Id)
 	reply.MyCount = totolCount.ToApiCount()
 	return
 }
@@ -102,21 +89,22 @@ func (this *Counter) ReadEntry(input *ReadEntryInput, reply *CountNotification) 
 		return
 	}
 
-	var myCount *qortexapi.MyCount
-	serv, err := MakeWsService(input.OrganizationId, input.ReaderId)
+	_, onlineUser, err := getActiveOrgAndOnlineUser(input.OrganizationId, input.ReaderId)
 	if err != nil {
 		utils.PrintStackAndError(err)
 		return
 	}
 
 	var method string
+	var myCount *qortexapi.MyCount
 	switch {
 	case input.isReadEntry():
 		method = COUNTER_READ_ENTRY
-		myCount, err = serv.ReadEntry(input.EntryId, input.GroupId)
+		// myCount, err = serv.ReadEntry(input.EntryId, input.GroupId)
+		myCount, err = ReadEntry(input.OrganizationId, input.ReaderId, input.GroupId, input.EntryId)
 	case input.isReadMyMessage():
 		method = COUNTER_READ_MESSAGE
-		myCount, err = serv.ReadMyMessage(input.ConversationId)
+		// myCount, err = serv.ReadMyMessage(input.ConversationId)
 	default:
 		return
 	}
@@ -125,7 +113,7 @@ func (this *Counter) ReadEntry(input *ReadEntryInput, reply *CountNotification) 
 		return
 	}
 
-	if serv.OnlineUser == nil {
+	if onlineUser == nil {
 		return
 	}
 
@@ -134,9 +122,9 @@ func (this *Counter) ReadEntry(input *ReadEntryInput, reply *CountNotification) 
 		EntryId:          input.EntryId,
 		GroupId:          input.GroupId,
 		MyCount:          myCount,
-		NewMessageNumber: serv.OnlineUser.ClearNewMessageId(),
+		NewMessageNumber: onlineUser.ClearNewMessageId(),
 	}
-	serv.OnlineUser.SendReply(newReply)
+	onlineUser.SendReply(newReply)
 
 	return
 }

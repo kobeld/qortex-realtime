@@ -33,3 +33,11 @@ func CountNotifications(db *mgodb.Database, query bson.M) (num int, err error) {
 	})
 	return
 }
+
+func UpdateAllNotifications(db *mgodb.Database, selector, changer bson.M) (info *mgo.ChangeInfo, err error) {
+	db.CollectionDo(NOTIFICATIONS, func(rc *mgo.Collection) {
+		info, err = rc.UpdateAll(selector, changer)
+	})
+
+	return
+}

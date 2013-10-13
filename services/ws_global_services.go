@@ -1,6 +1,8 @@
 package services
 
 import (
+	"errors"
+	"fmt"
 	"github.com/kobeld/qortex-realtime/models/ws"
 	"github.com/sunfmin/mgodb"
 	"github.com/theplant/qortex/i18n"
@@ -57,7 +59,7 @@ func MyActiveOrg(orgIdHex string) (activeOrg *ws.ActiveOrg, err error) {
 	activeOrg = &ws.ActiveOrg{
 		OrgId:        orgIdHex,
 		Organization: org,
-		OnlineUsers:  make(map[bson.ObjectId]*ws.OnlineUser),
+		OnlineUsers:  make(map[string]*ws.OnlineUser),
 		Broadcast:    make(chan ws.GenericPushingMessage),
 		CloseSign:    make(chan bool),
 		AllDBs:       allDBs,
@@ -88,6 +90,62 @@ func runActiveOrg(activeOrg *ws.ActiveOrg) {
 	}
 }
 
+// Get the group located Organization by the group Id
+func GetGroupOrg(orgIdHex, groupIdHex string) (org *organizations.Organization, err error) {
+	activeOrg, err := MyActiveOrg(orgIdHex)
+	if err != nil {
+		utils.PrintStackAndError(err)
+		return
+	}
+
+	groupOrgIdHex, exist := activeOrg.Organization.GroupToOrgMap[groupIdHex]
+	if groupIdHex == "" || !exist {
+		org = activeOrg.Organization
+		return
+	}
+
+	// TODO: Could let ActiveOrg maintain a map[orgId]*org map that caches all GroupToOrgMap
+	return organizations.FindById(bson.ObjectIdHex(groupOrgIdHex))
+}
+
+func GetGroupOrgDB(orgIdHex, groupIdHex string) (db *mgodb.Database, err error) {
+	org, err := GetGroupOrg(orgIdHex, groupIdHex)
+	if err != nil {
+		utils.PrintStackAndError(err)
+		return
+	}
+
+	db = org.Database
+	return
+}
+
+func GetOnlineUsersByOrgIds(orgIds []string) map[bson.ObjectId]*ws.OnlineUser {
+	onlineUsers := make(map[bson.ObjectId]*ws.OnlineUser)
+	for _, orgId := range orgIds {
+		org, _ := MyActiveOrg(orgId)
+		if org == nil {
+			continue
+		}
+
+		for _, onlineUser := range org.OnlineUsers {
+			onlineUsers[onlineUser.User.Id] = onlineUser
+		}
+	}
+	return onlineUsers
+}
+
+func getActiveOrgAndOnlineUser(orgIdHex, userIdHex string) (activeOrg *ws.ActiveOrg, onlineUser *ws.OnlineUser, err error) {
+	activeOrg, err = MyActiveOrg(orgIdHex)
+	if err != nil {
+		utils.PrintStackAndError(err)
+		return
+	}
+
+	onlineUser = activeOrg.GetOnlineUserById(userIdHex)
+
+	return
+}
+
 // The websocket service that wrapping the qortex Service, which can invoke the api methods
 type WsService struct {
 	services.Service
@@ -110,9 +168,10 @@ func MakeWsService(orgIdHex, userIdHex string) (wsService *WsService, err error)
 	}
 
 	wsService = new(WsService)
-	onlineUser, err := activeOrg.GetOnlineUserById(userId)
-	if err != nil {
-		utils.PrintStackAndError(err)
+	onlineUser := activeOrg.GetOnlineUserById(userIdHex)
+	if onlineUser == nil {
+		err = errors.New(fmt.Sprintf("No such online user (%+v) in Active org (%+v)",
+			userIdHex, orgIdHex))
 		return
 	}
 
@@ -131,19 +190,4 @@ func MakeWsService(orgIdHex, userIdHex string) (wsService *WsService, err error)
 	wsService.Locale = i18n.EN
 
 	return
-}
-
-func GetOnlineUsersByOrgIds(orgIds []string) map[bson.ObjectId]*ws.OnlineUser {
-	onlineUsers := make(map[bson.ObjectId]*ws.OnlineUser)
-	for _, orgId := range orgIds {
-		org, _ := MyActiveOrg(orgId)
-		if org == nil {
-			continue
-		}
-
-		for key, onlineUser := range org.OnlineUsers {
-			onlineUsers[key] = onlineUser
-		}
-	}
-	return onlineUsers
 }

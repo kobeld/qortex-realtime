@@ -1,6 +1,7 @@
 package notifications
 
 import (
+	"github.com/sunfmin/mgodb"
 	"github.com/theplant/qortex/users"
 	"github.com/theplant/qortexapi"
 	"labix.org/v2/mgo/bson"
@@ -45,4 +46,11 @@ func NewNotification(toUser, fromUser *users.EmbedUser, eType string,
 	}
 
 	return notifi
+}
+
+func ReadNotifications(db *mgodb.Database, readerId, entryId bson.ObjectId, readAt time.Time) (err error) {
+	selector := bson.M{"userid": readerId, "entryid": entryId}
+	changer := bson.M{"$set": bson.M{"readat": readAt}}
+	_, err = UpdateAllNotifications(db, selector, changer)
+	return
 }

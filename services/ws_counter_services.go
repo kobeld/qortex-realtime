@@ -1,6 +1,7 @@
 package services
 
 import (
+	"github.com/kobeld/qortex-realtime/models/counts"
 	"github.com/theplant/qortex/utils"
 	"github.com/theplant/qortexapi"
 )
@@ -40,17 +41,28 @@ func (this *Counter) Refresh(input *RefreshInput, reply *CountNotification) (err
 	}()
 
 	reply.Method = COUNTER_REFRESH
-	serv, err := MakeWsService(input.OrganizationId, input.LoggedInUserId)
+
+	userId, err := utils.ToObjectId(input.LoggedInUserId)
 	if err != nil {
 		utils.PrintStackAndError(err)
 		return
 	}
 
-	reply.MyCount, err = serv.GetMyCount()
+	activeOrg, err := MyActiveOrg(input.OrganizationId)
 	if err != nil {
 		utils.PrintStackAndError(err)
 		return
 	}
+
+	onlineUser, err := activeOrg.GetOnlineUserById(userId)
+	if err != nil {
+		utils.PrintStackAndError(err)
+		return
+	}
+
+	totolCount := counts.SumAndGetAllDbCount(onlineUser.AllDBs(), activeOrg.Organization.Id, userId)
+
+	reply.MyCount = totolCount.ToApiCount()
 	return
 }
 

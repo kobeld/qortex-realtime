@@ -149,8 +149,6 @@ func (this *EntryEntity) MakeEventsAndSaveNotifications() (events []*Event, err 
 		events = append(events, event)
 	}
 
-	return
-
 	if err = notifications.SaveNotifications(this.gdb, allNotifis); err != nil {
 		utils.PrintStackAndError(err)
 		return

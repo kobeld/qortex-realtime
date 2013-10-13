@@ -9,6 +9,7 @@ var (
 	NsqLookupAdddr = "localhost:4161"
 )
 
-var (
+const (
 	ONLINE_USER_CLOSE_DURATION = 10 * time.Second
+	QORTEX_SUPPORT_DB_NAME     = "qortex_global"
 )

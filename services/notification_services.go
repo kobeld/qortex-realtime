@@ -1,6 +1,7 @@
 package services
 
 import (
+	"github.com/kobeld/qortex-realtime/models/counts"
 	"github.com/kobeld/qortex-realtime/models/ws"
 	"github.com/theplant/qortex/entries"
 	"github.com/theplant/qortex/notifications"
@@ -16,6 +17,7 @@ import (
 func SendEntryNotification(entryTopicData *nsqproducers.EntryTopicData) (err error) {
 
 	// Make the Websocket Service which overriding the qortexapi Service methods
+	// TODO: should consider moving this logic to the phase of building websocket connection
 	serv, err := MakeWsService(entryTopicData.OrgId, entryTopicData.UserId)
 	if err != nil {
 		utils.PrintStackAndError(err)
@@ -31,6 +33,7 @@ func SendEntryNotification(entryTopicData *nsqproducers.EntryTopicData) (err err
 
 	currentOrg := serv.CurrentOrg
 	currentUser := serv.LoggedInUser
+	groupId := bson.ObjectIdHex(apiEntry.GroupId)
 
 	entity := NewEntryEntity(gdb, currentOrg, currentUser, apiEntry)
 	onlineUsers := GetOnlineUsersByOrgIds(entity.GetToNotifyOrgIds())
@@ -41,7 +44,11 @@ func SendEntryNotification(entryTopicData *nsqproducers.EntryTopicData) (err err
 		return
 	}
 
+	var userOrgId bson.ObjectId
 	for _, event := range events {
+		userOrgId = bson.ObjectIdHex(event.ToUser.OriginalOrgId)
+
+		counts.ResetCount(gdb, userOrgId, event.ToUser.Id, groupId)
 
 		onlineUser := pickOnlineUser(event.ToUser.Id, onlineUsers)
 
@@ -49,10 +56,12 @@ func SendEntryNotification(entryTopicData *nsqproducers.EntryTopicData) (err err
 			continue
 		}
 
+		totolCount := counts.SumAndGetAllDbCount(onlineUser.AllDBs(), userOrgId, event.ToUser.Id)
+
 		reply := CountNotification{
 			Method:  "Counter.Refresh",
 			GroupId: apiEntry.GroupId,
-			MyCount: services.UserCountData(onlineUser.AllDBs(), onlineUser.User),
+			MyCount: totolCount.ToApiCount(),
 		}
 
 		if event.ShowNewBar {

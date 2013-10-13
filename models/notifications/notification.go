@@ -1,16 +1,10 @@
 package notifications
 
 import (
-	"github.com/sunfmin/mgodb"
 	"github.com/theplant/qortex/users"
 	"github.com/theplant/qortexapi"
-	"labix.org/v2/mgo"
 	"labix.org/v2/mgo/bson"
 	"time"
-)
-
-const (
-	NOTIFICATIONS = "notifications"
 )
 
 type Notification struct {
@@ -22,8 +16,8 @@ type Notification struct {
 	Content   string
 	RootId    bson.ObjectId // Comment on Entry Id
 	EType     string
-	CreatedAt time.Time
 	ReadAt    time.Time
+	CreatedAt time.Time
 }
 
 func (this *Notification) MakeId() interface{} {
@@ -51,21 +45,4 @@ func NewNotification(toUser, fromUser *users.EmbedUser, eType string,
 	}
 
 	return notifi
-}
-
-func SaveNotifications(db *mgodb.Database, notifis []*Notification) (err error) {
-	if len(notifis) == 0 {
-		return
-	}
-
-	nis := []interface{}{}
-	for _, ni := range notifis {
-		ni.MakeId()
-		nis = append(nis, ni)
-	}
-
-	db.CollectionDo(NOTIFICATIONS, func(rc *mgo.Collection) {
-		err = rc.Insert(nis...)
-	})
-	return
 }

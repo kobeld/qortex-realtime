@@ -1,7 +1,6 @@
-package services
+package notifications
 
 import (
-	"github.com/kobeld/qortex-realtime/models/notifications"
 	"github.com/theplant/qortex/users"
 	"github.com/theplant/qortexapi"
 )
@@ -56,7 +55,7 @@ type Event struct {
 	ToUser       *users.EmbedUser
 	VType        string
 	ShowNewBar   bool
-	Notification *notifications.Notification
+	Notification *Notification
 }
 
 func NewEvent(toUser *users.EmbedUser, vType string, showNewBar bool) *Event {
@@ -68,7 +67,7 @@ func NewEvent(toUser *users.EmbedUser, vType string, showNewBar bool) *Event {
 	}
 }
 
-func decideEventType(apiEntry *qortexapi.Entry) string {
+func DecideEventType(apiEntry *qortexapi.Entry) string {
 	switch {
 	case apiEntry.IsKnowledgeBase:
 		return VT_NEW_KNOWLEDGE

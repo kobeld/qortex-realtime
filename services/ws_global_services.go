@@ -1,14 +1,9 @@
 package services
 
 import (
-	"errors"
-	"fmt"
 	"github.com/kobeld/qortex-realtime/models/ws"
 	"github.com/sunfmin/mgodb"
-	"github.com/theplant/qortex/i18n"
-	"github.com/theplant/qortex/members"
 	"github.com/theplant/qortex/organizations"
-	"github.com/theplant/qortex/services"
 	"github.com/theplant/qortex/utils"
 	"labix.org/v2/mgo/bson"
 	"sync"
@@ -44,15 +39,10 @@ func MyActiveOrg(orgIdHex string) (activeOrg *ws.ActiveOrg, err error) {
 	}
 
 	// Find and maintain all dbs for handling shared groups
-	allDBs := []*mgodb.Database{org.Database}
-	embedOrgs, err := organizations.FindByIds(org.EmbededOrgIds)
+	allDBs, err := org.GetCurrentAndEmbedDBs()
 	if err != nil {
 		utils.PrintStackAndError(err)
 		return
-	}
-
-	for _, embedOrg := range embedOrgs {
-		allDBs = append(allDBs, embedOrg.Database)
 	}
 
 	// Init the activeOrg and put it into the map
@@ -134,6 +124,7 @@ func GetOnlineUsersByOrgIds(orgIds []string) map[bson.ObjectId]*ws.OnlineUser {
 	return onlineUsers
 }
 
+// Handy function for getting ActiveOrg and OnlineUser when passing orgId and userId in
 func getActiveOrgAndOnlineUser(orgIdHex, userIdHex string) (activeOrg *ws.ActiveOrg, onlineUser *ws.OnlineUser, err error) {
 	activeOrg, err = MyActiveOrg(orgIdHex)
 	if err != nil {
@@ -147,47 +138,47 @@ func getActiveOrgAndOnlineUser(orgIdHex, userIdHex string) (activeOrg *ws.Active
 }
 
 // The websocket service that wrapping the qortex Service, which can invoke the api methods
-type WsService struct {
-	services.Service
-	OnlineUser *ws.OnlineUser
-}
+// type WsService struct {
+// 	services.Service
+// 	OnlineUser *ws.OnlineUser
+// }
 
-// Make the service object in web socket connection
-func MakeWsService(orgIdHex, userIdHex string) (wsService *WsService, err error) {
+// // Make the service object in web socket connection
+// func MakeWsService(orgIdHex, userIdHex string) (wsService *WsService, err error) {
 
-	userId, err := utils.ToObjectId(userIdHex)
-	if err != nil {
-		utils.PrintStackAndError(err)
-		return
-	}
+// 	userId, err := utils.ToObjectId(userIdHex)
+// 	if err != nil {
+// 		utils.PrintStackAndError(err)
+// 		return
+// 	}
 
-	activeOrg, err := MyActiveOrg(orgIdHex)
-	if err != nil {
-		utils.PrintStackAndError(err)
-		return
-	}
+// 	activeOrg, err := MyActiveOrg(orgIdHex)
+// 	if err != nil {
+// 		utils.PrintStackAndError(err)
+// 		return
+// 	}
 
-	wsService = new(WsService)
-	onlineUser := activeOrg.GetOnlineUserById(userIdHex)
-	if onlineUser == nil {
-		err = errors.New(fmt.Sprintf("No such online user (%+v) in Active org (%+v)",
-			userIdHex, orgIdHex))
-		return
-	}
+// 	wsService = new(WsService)
+// 	onlineUser := activeOrg.GetOnlineUserById(userIdHex)
+// 	if onlineUser == nil {
+// 		err = errors.New(fmt.Sprintf("No such online user (%+v) in Active org (%+v)",
+// 			userIdHex, orgIdHex))
+// 		return
+// 	}
 
-	currentMember, err := members.FindById(userId)
-	if err != nil {
-		utils.PrintStackAndError(err)
-		return
-	}
+// 	currentMember, err := members.FindById(userId)
+// 	if err != nil {
+// 		utils.PrintStackAndError(err)
+// 		return
+// 	}
 
-	wsService.LoggedInMember = currentMember
-	wsService.OnlineUser = onlineUser
-	wsService.LoggedInUser = onlineUser.User
-	wsService.CurrentOrg = activeOrg.Organization
-	wsService.AllDBs = activeOrg.AllDBs
-	// TODO: should use the user locale
-	wsService.Locale = i18n.EN
+// 	wsService.LoggedInMember = currentMember
+// 	wsService.OnlineUser = onlineUser
+// 	wsService.LoggedInUser = onlineUser.User
+// 	wsService.CurrentOrg = activeOrg.Organization
+// 	wsService.AllDBs = activeOrg.AllDBs
+// 	// TODO: should use the user locale
+// 	wsService.Locale = i18n.EN
 
-	return
-}
+// 	return
+// }

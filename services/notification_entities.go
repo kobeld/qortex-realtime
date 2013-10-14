@@ -20,7 +20,7 @@ type Entity interface {
 	CausedByUser() *users.User
 	CausedByOrg() *organizations.Organization
 	// For events for every related user
-	MakeEventsAndSaveNotifications() ([]*Event, error)
+	MakeEventsAndSaveNotifications() ([]*notifications.Event, error)
 
 	GetToNotifyOrgIds() []string
 }
@@ -79,7 +79,7 @@ func NewEntryEntity(gdb *mgodb.Database, org *organizations.Organization, user *
 	return
 }
 
-func (this *EntryEntity) MakeEventsAndSaveNotifications() (events []*Event, err error) {
+func (this *EntryEntity) MakeEventsAndSaveNotifications() (events []*notifications.Event, err error) {
 	groupId, err := utils.ToObjectId(this.apiEntry.GroupId)
 	if err != nil {
 		utils.PrintStackAndError(err)
@@ -120,7 +120,7 @@ func (this *EntryEntity) MakeEventsAndSaveNotifications() (events []*Event, err 
 	}
 
 	fromUser := this.CausedByUser().ToEmbedUser()
-	eType := decideEventType(this.apiEntry)
+	eType := notifications.DecideEventType(this.apiEntry)
 
 	createdAt := time.Now()
 	allNotifis := []*notifications.Notification{}
@@ -137,7 +137,7 @@ func (this *EntryEntity) MakeEventsAndSaveNotifications() (events []*Event, err 
 		}
 
 		toUser := user.ToEmbedUser()
-		event := NewEvent(&toUser, eType, showNewBar)
+		event := notifications.NewEvent(&toUser, eType, showNewBar)
 		if _, ok := toUsersMap[user.Id.Hex()]; ok {
 			event.ShowNewBar = true
 			// Creating notification item

@@ -54,37 +54,47 @@ func (this *Counter) Refresh(input *RefreshInput, reply *CountNotification) (err
 }
 
 // Read Entry struct and methods
-type ReadEntryInput struct {
+type ReaderInput struct {
 	EntryId        string
 	ReaderId       string
 	GroupId        string
 	OrganizationId string
 	ConversationId string
+	NotificationId string
 }
 
-func (this *ReadEntryInput) isValid() bool {
+func (this *ReaderInput) isValid() bool {
 	if this.EntryId == "" || this.ReaderId == "" || this.OrganizationId == "" {
 		return false
 	}
 	return true
 }
 
-func (this *ReadEntryInput) isReadEntry() bool {
+func (this *ReaderInput) isValidForNotificaiton() bool {
+	if this.NotificationId == "" || this.ReaderId == "" || this.OrganizationId == "" {
+		return false
+	}
+
+	return true
+}
+
+func (this *ReaderInput) isReadEntry() bool {
 	return this.GroupId != "" && this.ConversationId == ""
 }
 
-func (this *ReadEntryInput) isReadMyMessage() bool {
+func (this *ReaderInput) isReadMyMessage() bool {
 	return this.GroupId == "" && this.ConversationId != ""
 }
 
-func (this *Counter) ReadEntry(input *ReadEntryInput, reply *CountNotification) (err error) {
+func (this *Counter) ReadEntry(input *ReaderInput, reply *CountNotification) (err error) {
 
 	defer func() {
 		if x := recover(); x != nil {
-			utils.PrintfStackAndError("Error: %+v \n For:", x.(error), input)
+			utils.PrintfStackAndError("Read entry error: %+v \n For:", x.(error), input)
 		}
 	}()
 
+	// Simple validation for those needed fields
 	if !input.isValid() {
 		return
 	}
@@ -129,43 +139,41 @@ func (this *Counter) ReadEntry(input *ReadEntryInput, reply *CountNotification) 
 	return
 }
 
-// Read the red notificaiton and realtime push the result to client
-type ReadNotificationInput struct {
-	NotificationItemId string
-	ReaderId           string
-	GroupId            string
-	OrganizationId     string
-}
-
-func (this *Counter) ReadNotificationItem(input *ReadNotificationInput, reply *CountNotification) (err error) {
+//  Read notification at real-time
+func (this *Counter) ReadNotification(input *ReaderInput, reply *CountNotification) (err error) {
 
 	defer func() {
 		if x := recover(); x != nil {
-			utils.PrintfStackAndError("Error: %+v \n For:", x.(error), input)
+			utils.PrintfStackAndError("Read notification error: %+v \n For:", x.(error), input)
 		}
 	}()
 
-	var myCount *qortexapi.MyCount
-	serv, err := MakeWsService(input.OrganizationId, input.ReaderId)
+	// Simple validation for those needed fields
+	if !input.isValidForNotificaiton() {
+		return
+	}
+
+	_, onlineUser, err := getActiveOrgAndOnlineUser(input.OrganizationId, input.ReaderId)
 	if err != nil {
 		utils.PrintStackAndError(err)
 		return
 	}
-	if myCount, err = serv.ReadNotificationItem(input.NotificationItemId, input.GroupId); err != nil {
+
+	myCount, err := ReadNotification(input.OrganizationId, input.ReaderId, input.GroupId, input.NotificationId)
+	if err != nil {
 		utils.PrintStackAndError(err)
 		return
 	}
 
-	if serv.OnlineUser == nil {
+	if onlineUser == nil {
 		return
 	}
 
 	newReply := CountNotification{
-		Method:           COUNTER_READ_NOTIFICATION,
-		MyCount:          myCount,
-		NewMessageNumber: len(serv.OnlineUser.NewMessageIds),
+		Method:  COUNTER_READ_NOTIFICATION,
+		MyCount: myCount,
 	}
-	serv.OnlineUser.SendReply(newReply)
+	onlineUser.SendReply(newReply)
 
 	return
 }

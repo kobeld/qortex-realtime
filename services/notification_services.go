@@ -16,14 +16,6 @@ import (
 
 func SendEntryNotification(entryTopicData *nsqproducers.EntryTopicData) (err error) {
 
-	// Make the Websocket Service which overriding the qortexapi Service methods
-	// TODO: should consider moving this logic to the phase of building websocket connection
-	// serv, err := MakeWsService(entryTopicData.OrgId, entryTopicData.UserId)
-	// if err != nil {
-	// 	utils.PrintStackAndError(err)
-	// 	return
-	// }
-
 	activeOrg, onlineUser, err := getActiveOrgAndOnlineUser(entryTopicData.OrgId, entryTopicData.UserId)
 	if err != nil {
 		utils.PrintStackAndError(err)
@@ -42,8 +34,8 @@ func SendEntryNotification(entryTopicData *nsqproducers.EntryTopicData) (err err
 	currentUser := onlineUser.User
 	groupId := bson.ObjectIdHex(apiEntry.GroupId)
 
+	// Get the abstract Entity
 	entity := NewEntryEntity(gdb, currentOrg, currentUser, apiEntry)
-	onlineUsers := GetOnlineUsersByOrgIds(entity.GetToNotifyOrgIds())
 
 	events, err := entity.MakeEventsAndSaveNotifications()
 	if err != nil {
@@ -52,6 +44,8 @@ func SendEntryNotification(entryTopicData *nsqproducers.EntryTopicData) (err err
 	}
 
 	var userOrgId bson.ObjectId
+	onlineUsers := GetOnlineUsersByOrgIds(entity.GetToNotifyOrgIds())
+
 	for _, event := range events {
 		userOrgId = bson.ObjectIdHex(event.ToUser.OriginalOrgId)
 

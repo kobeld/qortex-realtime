@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-// TODO: For better performance, be good to add a batch read function
+// OPT: For better performance, be good to add a batch read function
 func ReadNotification(orgIdHex, userIdHex, groupIdHex, notifIdHex string) (apiCount *qortexapi.MyCount, err error) {
 	userId, err := utils.ToObjectId(userIdHex)
 	if err != nil {

@@ -131,21 +131,33 @@ func (this *EntryEntity) MakeEventsAndSaveNotifications() (events []*notificatio
 			continue
 		}
 
+		toUser := user.ToEmbedUser()
+
+		// Show the "{n} New Messages" bar for group followers
 		showNewBar := false
 		if myGroup, ok := myGroupsMap[user.Id]; ok {
 			showNewBar = myGroup.IsFollower
 		}
 
-		toUser := user.ToEmbedUser()
+		// Make event for all users
 		event := notifications.NewEvent(&toUser, eType, showNewBar)
-		if _, ok := toUsersMap[user.Id.Hex()]; ok {
-			event.ShowNewBar = true
-			// Creating notification item
+
+		switch eType {
+		case notifications.VT_NEW_POST:
+			if _, ok := toUsersMap[user.Id.Hex()]; ok {
+				event.ShowNewBar = true
+				// Creating notification item
+				event.Notification = notifications.NewNotification(&toUser, &fromUser,
+					eType, this.apiEntry, createdAt)
+				allNotifis = append(allNotifis, event.Notification)
+
+			}
+		case notifications.VT_NEW_KNOWLEDGE:
 			event.Notification = notifications.NewNotification(&toUser, &fromUser,
 				eType, this.apiEntry, createdAt)
 			allNotifis = append(allNotifis, event.Notification)
-
 		}
+
 		events = append(events, event)
 	}
 

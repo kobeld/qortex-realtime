@@ -67,6 +67,7 @@ func NewEvent(toUser *users.EmbedUser, vType string, showNewBar bool) *Event {
 	}
 }
 
+// Decide the event type above by the Api Entry
 func DecideEventType(apiEntry *qortexapi.Entry) string {
 	switch {
 	case apiEntry.IsKnowledgeBase:

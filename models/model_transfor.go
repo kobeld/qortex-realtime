@@ -10,13 +10,14 @@ import (
 
 func ToApiNotificationItem(notifi *notifications.Notification) (apiNotification *qortexapi.NotificationItem) {
 	apiNotification = &qortexapi.NotificationItem{
-		Id:        notifi.Id.Hex(),
-		GroupId:   notifi.GroupId.Hex(),
-		Type:      notifi.EType,
-		HasRead:   !notifi.ReadAt.IsZero(),
-		HtmlTitle: global.StringToHtml(notifi.Title),
-		Link:      template.HTMLAttr(notifi.Link()),
-		FromUser:  ToApiEmbedUser(notifi.FromUser),
+		Id:       notifi.Id.Hex(),
+		GroupId:  notifi.GroupId.Hex(),
+		Type:     notifi.EType,
+		HasRead:  !notifi.ReadAt.IsZero(),
+		Title:    global.StringToHtml(notifi.Title),
+		Content:  global.StringToHtml(notifi.Content),
+		Link:     template.HTMLAttr(notifi.Link()),
+		FromUser: ToApiEmbedUser(notifi.FromUser),
 	}
 
 	return
@@ -37,7 +38,7 @@ func ToApiEmbedUser(embedUser *users.EmbedUser) *qortexapi.EmbedUser {
 			Id:     embedUser.Id.Hex(),
 			Name:   embedUser.Name,
 			Email:  embedUser.Email,
-			Avatar: embedUser.Avatar,
+			Avatar: embedUser.ExternalAvatar(),
 			// Not including other fields that not using in the popup
 		}
 	}

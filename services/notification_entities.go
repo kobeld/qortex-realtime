@@ -143,7 +143,7 @@ func (this *EntryEntity) MakeEventsAndSaveNotifications() (events []*notificatio
 		event := notifications.NewEvent(&toUser, eType, showNewBar)
 
 		switch eType {
-		case notifications.VT_NEW_POST:
+		case notifications.VT_NEW_POST, notifications.VT_NEW_COMMENT:
 			if _, ok := toUsersMap[user.Id.Hex()]; ok {
 				event.ShowNewBar = true
 				// Creating notification item

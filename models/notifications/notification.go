@@ -10,6 +10,10 @@ import (
 	"time"
 )
 
+const (
+	CONTENT_STRING_LENGTH = 60
+)
+
 type Notification struct {
 	Id        bson.ObjectId `bson:"_id"`
 	UserId    bson.ObjectId
@@ -38,6 +42,8 @@ func (this *Notification) Link() (url string) {
 	switch this.EType {
 	case VT_NEW_POST, VT_NEW_KNOWLEDGE:
 		url = fmt.Sprintf("%v/entry/%v", baseUrl, this.RootId.Hex())
+	case VT_NEW_COMMENT:
+		url = fmt.Sprintf("%v/entry/%v/cid/%v", baseUrl, this.RootId.Hex(), this.EntryId.Hex())
 	}
 
 	return
@@ -53,7 +59,7 @@ func NewNotification(toUser, fromUser *users.EmbedUser, eType string,
 		EntryId:   bson.ObjectIdHex(apiEntry.Id),
 		GroupId:   bson.ObjectIdHex(apiEntry.GroupId),
 		Title:     apiEntry.Title,
-		Content:   apiEntry.Content,
+		Content:   utils.CutString(apiEntry.Content, CONTENT_STRING_LENGTH),
 		EType:     eType,
 		CreatedAt: createdAt,
 	}

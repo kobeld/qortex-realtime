@@ -27,8 +27,6 @@ const (
 	VT_COMMENT_ONE_ACKED        = "event_042"
 	VT_COMMENT_OWNER_CANCEL_ACK = "event_043"
 
-	VT_NEW_CHAT = "event_050"
-
 	VT_NEW_TODO         = "event_060"
 	VT_ONE_FIN_TODO     = "event_061"
 	VT_OWNER_CLOSE_TODO = "event_062"
@@ -76,6 +74,8 @@ func DecideEventType(apiEntry *qortexapi.Entry) string {
 		return VT_NEW_COMMENT
 	case apiEntry.IsPost:
 		return VT_NEW_POST
+	case apiEntry.IsInnerMessage:
+		return VT_NEW_INNER_MESSAGE
 	default:
 		return VT_DEFAULT
 	}

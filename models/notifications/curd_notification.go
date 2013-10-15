@@ -13,6 +13,10 @@ const (
 	NOTIFICATIONS = "notifications"
 )
 
+func (this *Notification) Save(db *mgodb.Database) (err error) {
+	return db.Save(NOTIFICATIONS, this)
+}
+
 func ReadNotificationById(db *mgodb.Database, itemId bson.ObjectId) (info *mgo.ChangeInfo, err error) {
 	selector := bson.M{"_id": itemId}
 	changer := bson.M{"$set": bson.M{"readat": time.Now()}}

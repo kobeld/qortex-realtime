@@ -23,7 +23,7 @@ type Notification struct {
 	FromUser  *users.EmbedUser
 	Title     string
 	Content   string
-	RootId    bson.ObjectId `bson:",omitempty"` // Comment on Entry Id
+	RootId    bson.ObjectId // Comment on Entry Id. When not a comment, it will be EntryId
 	EType     string
 	ReadAt    time.Time `bson:",omitempty"`
 	CreatedAt time.Time

@@ -21,7 +21,6 @@ func SendEntryNotification(entryTopicData *nsqproducers.EntryTopicData) (err err
 		utils.PrintStackAndError(err)
 		return
 	}
-
 	apiEntry := entryTopicData.ApiEntry
 
 	gdb, err := GetGroupOrgDB(entryTopicData.OrgId, apiEntry.GroupId)
@@ -43,10 +42,14 @@ func SendEntryNotification(entryTopicData *nsqproducers.EntryTopicData) (err err
 		entity = NewLikeEntity(gdb, currentOrg, currentUser, apiEntry, hasLiked)
 
 	case nsqproducers.TOPIC_STATUS_CREATE:
-		entity = NewEntryEntity(gdb, currentOrg, currentUser, apiEntry)
 
-	default:
-		return
+		switch {
+		case apiEntry.IsQortexSupport:
+			entity = NewQortexSupportEntity(gdb, currentOrg, currentUser, apiEntry)
+
+		default:
+			entity = NewEntryEntity(gdb, currentOrg, currentUser, apiEntry)
+		}
 	}
 
 	events, err := entity.MakeEventsAndSaveNotifications()

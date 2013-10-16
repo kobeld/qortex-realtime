@@ -87,10 +87,10 @@ func (this *EntryEntity) MakeEventsAndSaveNotifications() (events []*notificatio
 		return
 	}
 
-	// // Special cases:
-	// // 1. knowledge base: should always create notifications for all group followers
-	// // 2. Mentioned or notified users: should create notifications and show the new message bar,
-	// //    no matter they are following the group or not.
+	// Special cases:
+	// 1. knowledge base: should always create notifications for all group followers
+	// 2. Mentioned or notified users: should create notifications and show the new message bar,
+	//    no matter they are following the group or not.
 
 	// Merge notified and mentioned user for creating notification
 	toUsersMap := make(map[string]string)
@@ -125,6 +125,7 @@ func (this *EntryEntity) MakeEventsAndSaveNotifications() (events []*notificatio
 
 	createdAt := time.Now()
 	allNotifis := []*notifications.Notification{}
+
 	for _, user := range allUsers {
 
 		// Don't notify the author
@@ -253,4 +254,100 @@ func (this *LikeEntity) MakeEventsAndSaveNotifications() (events []*notification
 
 	return
 
+}
+
+// ----- Qortex Support Entity -----
+type QortexSupportEntity struct {
+	baseEntity
+	toNotifyOrgIds []string
+}
+
+func NewQortexSupportEntity(gdb *mgodb.Database, org *organizations.Organization, user *users.User,
+	apiEntry *qortexapi.Entry) (qtEntity *QortexSupportEntity) {
+
+	qtEntity = new(QortexSupportEntity)
+	qtEntity.gdb = gdb
+	qtEntity.org = org
+	qtEntity.user = user
+	qtEntity.apiEntry = apiEntry
+	qtEntity.toNotifyOrgIds = []string{}
+	return
+}
+
+func (this *QortexSupportEntity) MakeEventsAndSaveNotifications() (events []*notifications.Event, err error) {
+
+	entryId := bson.ObjectIdHex(this.apiEntry.Id)
+
+	entry, err := entries.FindById(this.gdb, entryId)
+	if err != nil {
+		utils.PrintStackAndError(err)
+		return
+	}
+
+	// Get all users that should be notified
+	notifiedUsers, orgs, err := entry.GetQortexSupportAudiencesAndOrgs()
+	if err != nil {
+		utils.PrintStackAndError(err)
+		return
+	}
+
+	// Set the apiEntry Title with the Root Entry Title, for the use of Notification Title
+	// The CachedRootEntry is filled by GetQortexSupportAudiencesAndOrgs() above
+	this.apiEntry.Title = entry.Transients.CachedRootEntry.Title
+
+	for _, org := range orgs {
+		this.toNotifyOrgIds = append(this.toNotifyOrgIds, org.Id.Hex())
+	}
+
+	// Get the event type
+	var eventType string
+	if this.apiEntry.IsComment {
+		if this.apiEntry.IsFeedback {
+			eventType = notifications.VT_NEW_QORTEX_FEEDBACK_COMMENT
+		} else {
+			eventType = notifications.VT_NEW_QORTEX_BROADCAST_COMMENT
+		}
+	} else {
+		if this.apiEntry.IsFeedback {
+			eventType = notifications.VT_NEW_QORTEX_FEEDBACK
+		} else {
+			eventType = notifications.VT_NEW_QORTEX_BROADCAST
+		}
+	}
+
+	createdAt := time.Now()
+	fromUser := this.CausedByUser().ToEmbedUser()
+	allNotifis := []*notifications.Notification{}
+	// var toUser users.EmbedUser
+
+	for _, user := range notifiedUsers {
+
+		if user.Id == fromUser.Id {
+			continue
+		}
+
+		toUser := user.ToEmbedUser()
+		event := notifications.NewEvent(&toUser, eventType, true)
+		event.Notification = notifications.NewNotification(&toUser, &fromUser, eventType,
+			this.apiEntry, createdAt)
+
+		allNotifis = append(allNotifis, event.Notification)
+		events = append(events, event)
+	}
+
+	if len(allNotifis) == 0 {
+		return
+	}
+
+	if err = notifications.SaveNotifications(this.gdb, allNotifis); err != nil {
+		utils.PrintStackAndError(err)
+		return
+	}
+
+	return
+
+}
+
+func (this *QortexSupportEntity) GetToNotifyOrgIds() []string {
+	return this.toNotifyOrgIds
 }

@@ -40,7 +40,7 @@ func (this *Notification) Link() (url string) {
 	baseUrl := fmt.Sprintf("#groups/%v", this.GroupId.Hex())
 
 	switch this.EType {
-	case VT_NEW_POST, VT_NEW_KNOWLEDGE:
+	case VT_NEW_POST, VT_NEW_KNOWLEDGE, VT_NEW_QORTEX_BROADCAST, VT_NEW_QORTEX_FEEDBACK:
 		url = fmt.Sprintf("%v/entry/%v", baseUrl, this.RootId.Hex())
 	case VT_NEW_COMMENT:
 		url = fmt.Sprintf("%v/entry/%v/cid/%v", baseUrl, this.RootId.Hex(), this.EntryId.Hex())

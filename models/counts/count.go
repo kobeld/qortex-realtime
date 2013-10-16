@@ -65,7 +65,11 @@ func ResetCount(db *mgodb.Database, orgId, userId, groupId bson.ObjectId) (myCou
 		}
 
 		for _, count := range qortexSupportCounts {
-			count.sumAndSave(db, orgId, userId, count.OrganizationId)
+			if count.OrganizationId == orgId {
+				continue
+			}
+
+			count.sumAndSave(db, orgId, userId, groupId)
 		}
 	})
 
@@ -201,7 +205,7 @@ func (this *MyCount) sumNotificationNum(db *mgodb.Database, orgId, userId bson.O
 	}
 
 	if global.IsQortexSupportDB(db) {
-		query["organizationid"] = orgId
+		query["orgid"] = orgId
 	}
 
 	unreadNum, err := notifications.CountNotifications(db, query)

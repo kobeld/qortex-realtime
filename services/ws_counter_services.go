@@ -170,8 +170,9 @@ func (this *Counter) ReadNotification(input *ReaderInput, reply *CountNotificati
 	}
 
 	newReply := CountNotification{
-		Method:  COUNTER_READ_NOTIFICATION,
-		MyCount: myCount,
+		Method:           COUNTER_READ_NOTIFICATION,
+		MyCount:          myCount,
+		NewMessageNumber: len(onlineUser.NewMessageIds),
 	}
 	onlineUser.SendReply(newReply)
 

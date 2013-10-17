@@ -17,6 +17,7 @@ func InitConsumers() (err error) {
 	// Put consumers here
 	consumers := []Consumer{
 		&nfts.EntryNtfsConsumer{},
+		&nfts.GroupNtfsConsumer{},
 	}
 
 	for _, consumer := range consumers {

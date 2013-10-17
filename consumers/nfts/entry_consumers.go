@@ -29,6 +29,6 @@ func (this *EntryNtfsConsumer) HandleMessage(msg *nsq.Message) (err error) {
 
 	// fmt.Printf("%+v", entryTopicData.ApiEntry)
 
-	services.SendEntryNotification(entryTopicData)
+	services.PushEntryNotification(entryTopicData)
 	return
 }

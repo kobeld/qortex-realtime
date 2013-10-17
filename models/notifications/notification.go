@@ -15,18 +15,19 @@ const (
 )
 
 type Notification struct {
-	Id        bson.ObjectId `bson:"_id"`
-	UserId    bson.ObjectId
-	OrgId     bson.ObjectId // Original Org Id
-	GroupId   bson.ObjectId
-	EntryId   bson.ObjectId // The entry caused this notification
-	FromUser  *users.EmbedUser
-	Title     string
-	Content   string
-	RootId    bson.ObjectId // Comment on Entry Id. When not a comment, it will be EntryId
-	EType     string
-	ReadAt    time.Time `bson:",omitempty"`
-	CreatedAt time.Time
+	Id             bson.ObjectId `bson:"_id"`
+	UserId         bson.ObjectId
+	OrgId          bson.ObjectId // Original Org Id
+	GroupId        bson.ObjectId
+	EntryId        bson.ObjectId // The entry caused this notification
+	FromUser       *users.EmbedUser
+	Title          string
+	Content        string
+	RootId         bson.ObjectId // Comment on Entry Id. When not a comment, it will be EntryId
+	EType          string
+	ReadAt         time.Time `bson:",omitempty"`
+	CreatedAt      time.Time
+	RequestToEmail string `bson:",omitempty"` // When it is sharing notification, then sometimes needs the invitee's email
 }
 
 func (this *Notification) MakeId() interface{} {
@@ -40,10 +41,10 @@ func (this *Notification) Link() (url string) {
 	baseUrl := fmt.Sprintf("#groups/%v", this.GroupId.Hex())
 
 	switch this.EType {
-	case VT_NEW_POST, VT_NEW_KNOWLEDGE, VT_NEW_QORTEX_BROADCAST, VT_NEW_QORTEX_FEEDBACK:
-		url = fmt.Sprintf("%v/entry/%v", baseUrl, this.RootId.Hex())
 	case VT_NEW_COMMENT:
 		url = fmt.Sprintf("%v/entry/%v/cid/%v", baseUrl, this.RootId.Hex(), this.EntryId.Hex())
+	default:
+		url = fmt.Sprintf("%v/entry/%v", baseUrl, this.RootId.Hex())
 	}
 
 	return

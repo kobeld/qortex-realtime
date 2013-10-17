@@ -10,16 +10,17 @@ import (
 
 func ToApiNotificationItem(notifi *notifications.Notification) (apiNotification *qortexapi.NotificationItem) {
 	apiNotification = &qortexapi.NotificationItem{
-		Id:       notifi.Id.Hex(),
-		RootId:   notifi.RootId.Hex(),
-		GroupId:  notifi.GroupId.Hex(),
-		Type:     notifi.EType,
-		HasRead:  !notifi.ReadAt.IsZero(),
-		Title:    global.StringToHtml(notifi.Title),
-		Content:  global.StringToHtml(notifi.Content),
-		Link:     template.HTMLAttr(notifi.Link()),
-		FromUser: ToApiEmbedUser(notifi.FromUser),
-		IsRoot:   notifi.EntryId == notifi.RootId,
+		Id:             notifi.Id.Hex(),
+		RootId:         notifi.RootId.Hex(),
+		GroupId:        notifi.GroupId.Hex(),
+		Type:           notifi.EType,
+		HasRead:        !notifi.ReadAt.IsZero(),
+		Title:          global.StringToHtml(notifi.Title),
+		Content:        global.StringToHtml(notifi.Content),
+		Link:           template.HTMLAttr(notifi.Link()),
+		FromUser:       ToApiEmbedUser(notifi.FromUser),
+		IsRoot:         notifi.EntryId == notifi.RootId,
+		RequestToEmail: notifi.RequestToEmail,
 	}
 
 	return

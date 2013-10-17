@@ -15,8 +15,6 @@ import (
 )
 
 type Entity interface {
-	// ApiEntry which triggered this notification
-	CausedByEntry() *qortexapi.Entry
 	// User who made this notification
 	CausedByUser() *users.User
 	CausedByOrg() *organizations.Organization
@@ -32,10 +30,6 @@ type baseEntity struct {
 	org      *organizations.Organization
 	user     *users.User
 	apiEntry *qortexapi.Entry
-}
-
-func (this *baseEntity) CausedByEntry() *qortexapi.Entry {
-	return this.apiEntry
 }
 
 func (this *baseEntity) CausedByUser() *users.User {
@@ -350,4 +344,158 @@ func (this *QortexSupportEntity) MakeEventsAndSaveNotifications() (events []*not
 
 func (this *QortexSupportEntity) GetToNotifyOrgIds() []string {
 	return this.toNotifyOrgIds
+}
+
+// ----- Share Request Entity -----
+
+type ShareRequestEntity struct {
+	baseEntity
+	apiRequest   *qortexapi.ShareRequest
+	requestEntry *entries.Entry
+}
+
+func NewShareRequestEntity(org *organizations.Organization, user *users.User,
+	apiRequest *qortexapi.ShareRequest) (requestEntity *ShareRequestEntity, err error) {
+
+	requestEntity = new(ShareRequestEntity)
+	requestEntity.user = user
+	requestEntity.org = org
+	requestEntity.apiRequest = apiRequest
+	requestEntity.requestEntry, err = entries.FindShareRequestEntryById(org.Database, bson.ObjectIdHex(apiRequest.Id))
+	if err != nil {
+		utils.PrintStackAndError(err)
+		return
+	}
+
+	return
+}
+
+func (this *ShareRequestEntity) GetRequestEntry() *entries.Entry {
+	return this.requestEntry
+}
+
+func (this *ShareRequestEntity) GetApiShareRequest() *qortexapi.ShareRequest {
+	return this.apiRequest
+}
+
+func (this *ShareRequestEntity) GetToNotifyOrgIds() []string {
+	return []string{this.org.Id.Hex()}
+}
+
+func (this *ShareRequestEntity) MakeEventsAndSaveNotifications() (events []*notifications.Event, err error) {
+
+	// Check if going to send realtime notification to Inviter organization users,
+	// the behavior should be different to Inviter and Invitee org.
+	isToInviterOrg := false
+	if this.CausedByUser().Id.Hex() == this.apiRequest.FromUser.Id {
+		isToInviterOrg = true
+	}
+
+	db := this.org.Database
+	toUsers := []*users.User{}
+
+	var eventType string
+	switch {
+	case this.apiRequest.IsPending:
+		// Notify all except the Inviter
+		toUsers, _ = users.FindAllExcept(db, []bson.ObjectId{this.user.Id})
+		eventType = notifications.VT_NEW_SHARED_REQUEST
+
+	case this.apiRequest.IsForwarded:
+
+		eventType = notifications.VT_FORWARDED_SHARED_REQUEST
+		if isToInviterOrg {
+			// Only notify the Inviter
+			toUsers = append(toUsers, this.user)
+		} else {
+			// Only notify super users
+			toUsers, _ = users.FindSuperUsers(db)
+		}
+
+	case this.apiRequest.IsAccepted, this.apiRequest.IsRejected:
+
+		if this.apiRequest.IsAccepted {
+			eventType = notifications.VT_ACCEPT_SHARED_REQUEST
+		} else {
+			eventType = notifications.VT_REJECT_SHARED_REQUEST
+			if this.apiRequest.ToOrg.Id == "" {
+				eventType = notifications.VT_REJECT_BEFORE_FORWARDING
+			}
+		}
+
+		if isToInviterOrg {
+			// Only notify the Inviter
+			toUsers = append(toUsers, this.user)
+		} else {
+			// The request has been forwarded and approved by admins,
+			// then should notify the forwarder (real invitee).
+			if this.apiRequest.Responser.Id != this.apiRequest.ToUser.Id {
+				toUser, _ := users.FindById(db, bson.ObjectIdHex(this.apiRequest.ToUser.Id))
+				if toUser != nil {
+					toUsers = append(toUsers, toUser)
+				}
+			}
+		}
+
+	case this.apiRequest.IsCanceled:
+		eventType = notifications.VT_CANCEL_SHARED_REQUEST
+		toUsers = append(toUsers, this.user)
+
+	case this.apiRequest.IsStopped:
+		eventType = notifications.VT_STOP_SHARING_GROUP
+		toUsers = append(toUsers, this.user)
+	}
+
+	toUsersMap := make(map[bson.ObjectId]bson.ObjectId)
+	for _, toUser := range toUsers {
+		toUsersMap[toUser.Id] = toUser.Id
+	}
+
+	fromUser := this.CausedByUser().ToEmbedUser()
+	createdAt := time.Now()
+	allNotifis := []*notifications.Notification{}
+
+	// Initialize events for all users
+	allUsers, _ := users.FindAll(db, nil)
+
+	for _, user := range allUsers {
+		// if user.Id == fromUser.Id {
+		// 	continue
+		// }
+
+		toUser := user.ToEmbedUser()
+		// Make event for user
+		event := notifications.NewEvent(&toUser, eventType, false)
+		if _, ok := toUsersMap[user.Id]; ok {
+			// Creating notification item
+			event.Notification = &notifications.Notification{
+				UserId:         toUser.Id,
+				OrgId:          this.org.Id,
+				FromUser:       &fromUser,
+				EntryId:        this.requestEntry.Id,
+				GroupId:        this.requestEntry.GroupId,
+				Title:          this.requestEntry.Title,
+				Content:        this.requestEntry.Content,
+				EType:          eventType,
+				CreatedAt:      createdAt,
+				RootId:         this.requestEntry.Id,
+				RequestToEmail: this.apiRequest.ToEmail,
+			}
+			allNotifis = append(allNotifis, event.Notification)
+
+		}
+
+		events = append(events, event)
+	}
+
+	if len(allNotifis) == 0 {
+		return
+	}
+
+	if err = notifications.SaveNotifications(db, allNotifis); err != nil {
+		utils.PrintStackAndError(err)
+		return
+	}
+
+	return
 }
